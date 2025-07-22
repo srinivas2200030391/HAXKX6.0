@@ -1,31 +1,66 @@
+# from langchain_community.document_loaders import PyPDFLoader, DirectoryLoader
+# from langchain_community.embeddings import HuggingFaceEmbeddings
+
+
+# from langchain.text_splitter import RecursiveCharacterTextSplitter
+
+
+# #Extract Data From the PDF File
+# def load_pdf_file(data):
+#     loader= DirectoryLoader(data,
+#                             glob="*.pdf",
+#                             loader_cls=PyPDFLoader)
+
+#     documents=loader.load()
+
+#     return documents
+
+
+
+# #Split the Data into Text Chunks
+# def text_split(extracted_data):
+#     text_splitter=RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=20)
+#     text_chunks=text_splitter.split_documents(extracted_data)
+#     return text_chunks
+
+
+
+# #Download the Embeddings from HuggingFace 
+# def download_hugging_face_embeddings():
+#     embeddings=HuggingFaceEmbeddings(model_name='sentence-transformers/all-MiniLM-L6-v2')  #this model return 384 dimensions
+#     return embeddings
+
+
 from langchain_community.document_loaders import PyPDFLoader, DirectoryLoader
 from langchain_community.embeddings import HuggingFaceEmbeddings
-
-
 from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.docstore.document import Document
+import re
 
-
-#Extract Data From the PDF File
+# Extract Data From the PDF File
 def load_pdf_file(data):
-    loader= DirectoryLoader(data,
-                            glob="*.pdf",
-                            loader_cls=PyPDFLoader)
-
-    documents=loader.load()
-
+    loader = DirectoryLoader(data, glob="*.pdf", loader_cls=PyPDFLoader)
+    documents = loader.load()
     return documents
 
+# Helper to extract clause or section references
+def extract_clause(text):
+    # Matches "Clause 3.1", "Section 4", "Article II", etc.
+    match = re.search(r'(Clause|Section|Article)\s+[\w.-]+', text, re.IGNORECASE)
+    return match.group(0) if match else None
 
-
-#Split the Data into Text Chunks
+# Split the Data into Text Chunks and attach clause metadata
 def text_split(extracted_data):
-    text_splitter=RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=20)
-    text_chunks=text_splitter.split_documents(extracted_data)
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=20)
+    text_chunks = text_splitter.split_documents(extracted_data)
+
+    for chunk in text_chunks:
+        clause = extract_clause(chunk.page_content)
+        chunk.metadata["clause"] = clause if clause else "Unknown"
+
     return text_chunks
 
-
-
-#Download the Embeddings from HuggingFace 
+# Download the Embeddings from HuggingFace 
 def download_hugging_face_embeddings():
-    embeddings=HuggingFaceEmbeddings(model_name='sentence-transformers/all-MiniLM-L6-v2')  #this model return 384 dimensions
+    embeddings = HuggingFaceEmbeddings(model_name='sentence-transformers/all-MiniLM-L6-v2')  # returns 384-dim embeddings
     return embeddings
