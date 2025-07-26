@@ -31,3 +31,13 @@ RjzzMGmPkPmSdfUs
 
 
 mongodb+srv://2200032294:RjzzMGmPkPmSdfUs@cluster0.pmu5a.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0
+
+
+
+
+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
+
+
+uvicorn app:app --host 0.0.0.0 --port 8080
+
+157785639326-8v9q148672ndonplrhqj7nveqgfl22au.apps.googleusercontent.com

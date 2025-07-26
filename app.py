@@ -398,134 +398,110 @@
 
 
 
-from flask import Flask, request, jsonify, render_template
-from flask_cors import CORS
-from werkzeug.utils import secure_filename
-from dotenv import load_dotenv
-import os, time, re
-from collections import OrderedDict
+# from flask import Flask, request, jsonify, render_template
+# from flask_cors import CORS
+# from werkzeug.utils import secure_filename
+# from dotenv import load_dotenv
+# import os, re, time, json
+# from collections import OrderedDict
 
-from langchain_google_genai import GoogleGenerativeAI
-from langchain_pinecone import PineconeVectorStore
-from langchain.chains import create_retrieval_chain
-from langchain.chains.combine_documents import create_stuff_documents_chain
-from langchain_core.prompts import ChatPromptTemplate
-from pinecone.grpc import PineconeGRPC as Pinecone
+# from langchain_community.chat_models import ChatOpenAI
+# from langchain_pinecone import PineconeVectorStore
+# from langchain.chains import create_retrieval_chain
+# from langchain.chains.combine_documents import create_stuff_documents_chain
+# from langchain_core.prompts import ChatPromptTemplate
+# from pinecone import Pinecone
+# from deep_translator import GoogleTranslator
 
-from deep_translator import GoogleTranslator
-from src.helper import load_pdf_file, text_split, download_hugging_face_embeddings
-from src.prompt import structured_system_prompt,general_system_prompt
-import json
-import re
+# from src.helper import load_pdf_file, text_split, download_hugging_face_embeddings
+# from src.prompt import structured_system_prompt, general_system_prompt
 
-# ───────────── Flask Setup ───────────── #
-app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "http://localhost:5173"}})
-UPLOAD_FOLDER = "Data/"
+# # ───────────── Flask Setup ───────────── #
+# app = Flask(__name__)
+# CORS(app, resources={r"/*": {"origins": "http://localhost:5173"}})
+# UPLOAD_FOLDER = "Data/"
 
-load_dotenv()
-PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
-os.environ["PINECONE_API_KEY"] = PINECONE_API_KEY
-os.environ["GOOGLE_API_KEY"] = GOOGLE_API_KEY
+# # ───────────── Load Env ───────────── #
+# load_dotenv()
+# PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
+# OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+# os.environ["PINECONE_API_KEY"] = PINECONE_API_KEY
 
-# ───────────── Load Embeddings and Setup ───────────── #
-embeddings = download_hugging_face_embeddings()
-index_name = "hackx"
-docsearch = PineconeVectorStore.from_existing_index(index_name=index_name, embedding=embeddings)
-retriever = docsearch.as_retriever(search_type="similarity", search_kwargs={"k": 3})
+# # ───────────── Load Vector Index ───────────── #
+# embeddings = download_hugging_face_embeddings()
+# index_name = "hackx"
+# docsearch = PineconeVectorStore.from_existing_index(index_name=index_name, embedding=embeddings)
+# retriever = docsearch.as_retriever(search_type="similarity", search_kwargs={"k": 3})
 
-llm = GoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.4, max_tokens=500)
+# # ───────────── Load LLM ───────────── #
+# llm = ChatOpenAI(
+#     base_url="https://openrouter.ai/api/v1",
+#     api_key=OPENROUTER_API_KEY,
+#     model="qwen/qwen-2.5-72b-instruct:free"
+# )
 
-prompt = ChatPromptTemplate.from_messages([
-    ("system", structured_system_prompt),
-    ("human", "{input}")
-])
-qa_chain = create_stuff_documents_chain(llm, prompt)
-rag_chain = create_retrieval_chain(retriever, qa_chain)
+# # ───────────── Default Prompt & Chain ───────────── #
+# prompt = ChatPromptTemplate.from_messages([
+#     ("system", structured_system_prompt),
+#     ("human", "{input}")
+# ])
+# qa_chain = create_stuff_documents_chain(llm, prompt)
+# rag_chain = create_retrieval_chain(retriever, qa_chain)
 
-# ───────────── Cache ───────────── #
-faq_cache = OrderedDict()
-CACHE_SIZE = 100
-CACHE_EXPIRY = 60  # seconds
+# # ───────────── Routes ───────────── #
+# @app.route("/")
+# def index():
+#     return render_template("chat.html")
 
+# @app.route("/translate", methods=["POST"])
+# def translate_text():
+#     text = request.json.get("text", "")
+#     translated = GoogleTranslator(source="auto", target="en").translate(text)
+#     return jsonify({"translatedText": translated})
 
-import re
+# @app.route("/get", methods=["GET", "POST"])
+# def chat():
+#     msg = request.form["msg"]
+#     input_text = msg.strip().lower()
+#     response = rag_chain.invoke({"input": msg})
+#     answer = response["answer"]
+#     return str(answer)
 
-def is_structured_query(user_input: str) -> bool:
-    keywords = [
-        "cover", "covered", "approval", "approved", "reject", "rejected",
-        "eligibility", "claim", "insurance pay", "entitled", "included",
-        "can i get", "reimburse", "limit", "amount", "how much"
-    ]
-    return any(re.search(rf"\b{kw}\b", user_input.lower()) for kw in keywords)
+# @app.route("/upload", methods=["POST"])
+# def upload_file():
+#     if 'file' not in request.files:
+#         return jsonify({"error": "No file uploaded"}), 400
 
+#     file = request.files['file']
+#     if file.filename == '':
+#         return jsonify({"error": "Empty filename"}), 400
 
-def cache_response(question, answer):
-    now = time.time()
-    expired = [k for k, (_, ts) in faq_cache.items() if now - ts > CACHE_EXPIRY]
-    for k in expired:
-        del faq_cache[k]
-    if len(faq_cache) >= CACHE_SIZE:
-        faq_cache.popitem(last=False)
-    faq_cache[question] = (answer, now)
+#     filename = secure_filename(file.filename)
+#     filepath = os.path.join(UPLOAD_FOLDER, filename)
+#     file.save(filepath)
 
-# ───────────── Routes ───────────── #
-@app.route("/")
-def index():
-    return render_template("chat.html")
+#     try:
+#         extracted_data = load_pdf_file(data=UPLOAD_FOLDER)
+#         chunks = text_split(extracted_data)
+#         embeddings = download_hugging_face_embeddings()
 
-@app.route("/translate", methods=["POST"])
-def translate_text():
-    text = request.json.get("text", "")
-    translated = GoogleTranslator(source="auto", target="en").translate(text)
-    return jsonify({"translatedText": translated})
+#         pc = Pinecone(api_key=PINECONE_API_KEY)
+#         PineconeVectorStore.from_documents(
+#             documents=chunks,
+#             index_name=index_name,
+#             embedding=embeddings,
+#         )
+#         return jsonify({"message": f"{filename} uploaded and indexed successfully."})
+#     except Exception as e:
+#         return jsonify({"error": str(e)}), 500
 
-@app.route("/faq", methods=["GET"])
-def view_faq():
-    return jsonify({q: ans for q, (ans, _) in faq_cache.items()})
-
-@app.route("/get", methods=["GET", "POST"])
-def chat():
-    msg = request.form["msg"]
-    input_text = msg.strip().lower()
-    now = time.time()
-
-    if input_text in faq_cache and now - faq_cache[input_text][1] <= CACHE_EXPIRY:
-        return faq_cache[input_text][0]
-
-    response = rag_chain.invoke({"input": msg})
-    answer = response["answer"]
-    cache_response(input_text, answer)
-    return str(answer)
-
-@app.route("/upload", methods=["POST"])
-def upload_file():
-    if 'file' not in request.files:
-        return jsonify({"error": "No file uploaded"}), 400
-
-    file = request.files['file']
-    if file.filename == '':
-        return jsonify({"error": "Empty filename"}), 400
-
-    filename = secure_filename(file.filename)
-    filepath = os.path.join(UPLOAD_FOLDER, filename)
-    file.save(filepath)
-
-    try:
-        extracted_data = load_pdf_file(data=UPLOAD_FOLDER)
-        chunks = text_split(extracted_data)
-        embeddings = download_hugging_face_embeddings()
-
-        pc = Pinecone(api_key=PINECONE_API_KEY)
-        PineconeVectorStore.from_documents(
-            documents=chunks,
-            index_name=index_name,
-            embedding=embeddings,
-        )
-        return jsonify({"message": f"{filename} uploaded and indexed successfully."})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+# def is_structured_query(user_input: str) -> bool:
+#     keywords = [
+#         "cover", "covered", "approval", "approved", "reject", "rejected",
+#         "eligibility", "claim", "insurance pay", "entitled", "included",
+#         "can i get", "reimburse", "limit", "amount", "how much"
+#     ]
+#     return any(re.search(rf"\b{kw}\b", user_input.lower()) for kw in keywords)
 
 # @app.route("/query", methods=["POST"])
 # def query_doc():
@@ -533,58 +509,123 @@ def upload_file():
 #     if not user_input:
 #         return jsonify({"error": "Empty query"}), 400
 
-#     response = rag_chain.invoke({"input": user_input})
-#     raw_answer = response["answer"]
+#     # Dynamic prompt selection
+#     if is_structured_query(user_input):
+#         chosen_prompt = ChatPromptTemplate.from_messages([
+#             ("system", structured_system_prompt),
+#             ("human", "{input}")
+#         ])
+#     else:
+#         chosen_prompt = ChatPromptTemplate.from_messages([
+#             ("system", general_system_prompt),
+#             ("human", "{input}")
+#         ])
 
-#     try:
-#         # Remove ```json and ``` from start/end if present
-#         cleaned = re.sub(r"```json|```", "", raw_answer).strip()
+#     qa_chain = create_stuff_documents_chain(llm, chosen_prompt)
+#     dynamic_rag_chain = create_retrieval_chain(retriever, qa_chain)
 
-#         # Try to parse the cleaned string as JSON
-#         parsed = json.loads(cleaned)
+#     response = dynamic_rag_chain.invoke({"input": user_input})
+#     answer = response["answer"]
+#     return jsonify({"answer": answer})
 
-#         # Validate keys exist
-#         if not all(k in parsed for k in ["decision", "amount", "justification"]):
-#             raise ValueError("Missing expected keys in response")
-
-#         return jsonify(parsed)
-
-#     except Exception as e:
-#         return jsonify({
-#             "decision": "pending",
-#             "amount": None,
-#             "justification": f"Failed to parse structured response. Please verify the format. Raw: {raw_answer}"
-#         })
-
-
-@app.route("/query", methods=["POST"])
-def query_doc():
-    user_input = request.get_json().get("msg", "").strip()
-    if not user_input:
-        return jsonify({"error": "Empty query"}), 400
-
-    # Decide prompt type based on keywords
-    if is_structured_query(user_input):
-        chosen_prompt = ChatPromptTemplate.from_messages([
-            ("system", structured_system_prompt),
-            ("human", "{input}")
-        ])
-    else:
-        chosen_prompt = ChatPromptTemplate.from_messages([
-            ("system", general_system_prompt),
-            ("human", "{input}")
-        ])
-
-    # Rebuild LLM chain dynamically
-    qa_chain = create_stuff_documents_chain(llm, chosen_prompt)
-    dynamic_rag_chain = create_retrieval_chain(retriever, qa_chain)
-
-    # Get response
-    response = dynamic_rag_chain.invoke({"input": user_input})
-    answer = response["answer"]
-
-    return jsonify({"answer": answer})
+# if __name__ == "__main__":
+#     app.run(host="0.0.0.0", port=8080, debug=True)
 
 
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8080, debug=True)
+
+#             switch to fastapi
+
+from fastapi import FastAPI, Request, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+import requests
+import os
+from dotenv import load_dotenv
+import tempfile
+
+from langchain_openai import ChatOpenAI
+from langchain_pinecone import PineconeVectorStore
+from langchain.chains import create_retrieval_chain
+from langchain.chains.combine_documents import create_stuff_documents_chain
+from langchain_core.prompts import ChatPromptTemplate
+from pinecone import Pinecone
+
+from src.helper import load_pdf_file, text_split, download_hugging_face_embeddings
+from src.prompt import structured_system_prompt  # Adapt as needed
+
+load_dotenv()
+PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+os.environ["PINECONE_API_KEY"] = PINECONE_API_KEY
+
+app = FastAPI()
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
+
+embeddings = download_hugging_face_embeddings()
+index_name = "hackx"
+
+llm = ChatOpenAI(
+    base_url="https://openrouter.ai/api/v1",
+    api_key=OPENROUTER_API_KEY,
+    model="qwen/qwen-2.5-72b-instruct:free"
+)
+
+prompt = ChatPromptTemplate.from_messages([
+    ("system", structured_system_prompt),
+    ("human", "{input}")
+])
+
+class QueryRequest(BaseModel):
+    documents: str
+    questions: list[str]
+
+
+@app.post("/hackrx/run")
+async def run_query(request: Request, body: QueryRequest):
+    auth = request.headers.get("Authorization")
+    if not auth or not auth.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    
+    # Download document from URL using a safe temporary file path
+    try:
+        response = requests.get(body.documents)
+        response.raise_for_status()  # Raise error if download fails
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp_file:
+            temp_file.write(response.content)
+            temp_filepath = temp_file.name  # Gets a valid temp path like C:\Users\renua\AppData\Local\Temp\tmp123.pdf
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to download document: {str(e)}")
+    
+    # Process the document using your helper functions
+    try:
+        extracted_data = load_pdf_file(temp_filepath)  # Adapted to use file path, not directory
+        chunks = text_split(extracted_data, temp_filepath)
+        
+        # Create or use Pinecone index
+        pc = Pinecone(api_key=PINECONE_API_KEY)
+        docsearch = PineconeVectorStore.from_documents(
+            documents=chunks,
+            index_name=index_name,
+            embedding=embeddings,
+        )
+        retriever = docsearch.as_retriever(search_type="similarity", search_kwargs={"k": 3})
+        
+        # Create RAG chain
+        qa_chain = create_stuff_documents_chain(llm, prompt)
+        rag_chain = create_retrieval_chain(retriever, qa_chain)
+        
+        # Process each question
+        answers = []
+        for question in body.questions:
+            response = rag_chain.invoke({"input": question})
+            answers.append(response["answer"])
+        
+        # Clean up temp file
+        if os.path.exists(temp_filepath):
+            os.remove(temp_filepath)
+        return {"answers": answers}
+    except Exception as e:
+        # Clean up temp file if an error occurs
+        if os.path.exists(temp_filepath):
+            os.remove(temp_filepath)
+        raise HTTPException(status_code=500, detail=str(e))
