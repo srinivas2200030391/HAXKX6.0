@@ -6,7 +6,6 @@ conda activate euron-bot
 conda deactivate
 pip install -r requirments.txt
 
-pcsk_6wfoai_Tix3wqhsyj6UdGFTFvcXGMTdT9M1AYozRX361VeAG84g6W3jjAjymV11qxc6dEi
 
 
 conda create --name hackx6.0 --clone euron-bot 
@@ -22,7 +21,7 @@ conda create --name hackx6.0 --clone euron-bot
 
 
 
-redis-cli -u redis://default:zKZdqZREDVZnztblu7YWL96Mmd5f0KaE@redis-16546.c305.ap-south-1-1.ec2.redns.redis-cloud.com:16546
+
 
 
 
@@ -35,9 +34,7 @@ mongodb+srv://2200032294:RjzzMGmPkPmSdfUs@cluster0.pmu5a.mongodb.net/?retryWrite
 
 
 
-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
+
 
 
 uvicorn app:app --host 0.0.0.0 --port 8080
-
-157785639326-8v9q148672ndonplrhqj7nveqgfl22au.apps.googleusercontent.com
