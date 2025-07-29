@@ -534,7 +534,124 @@
 
 
 #             switch to fastapi
+# from fastapi import FastAPI, Request, HTTPException
+# from fastapi.middleware.cors import CORSMiddleware
+# from pydantic import BaseModel
+# import requests
+# import os
+# from dotenv import load_dotenv
+# import tempfile
+# import logging  # For debug logs
 
+# from langchain_openai import ChatOpenAI
+# from langchain_pinecone import PineconeVectorStore
+# from langchain.chains import create_retrieval_chain
+# from langchain.chains.combine_documents import create_stuff_documents_chain
+# from langchain_core.prompts import ChatPromptTemplate
+# from pinecone import Pinecone
+# from langchain_core.output_parsers import JsonOutputParser
+
+# from src.helper import load_pdf_file, text_split, download_hugging_face_embeddings
+# from src.prompt import structured_system_prompt
+# from langchain_google_genai import GoogleGenerativeAI
+# # Setup logging
+# logging.basicConfig(level=logging.INFO)
+
+# load_dotenv()
+# PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
+# OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+# os.environ["PINECONE_API_KEY"] = PINECONE_API_KEY
+
+# app = FastAPI()
+# app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
+
+# embeddings = download_hugging_face_embeddings()
+# index_name = "hackx-v2v"
+
+# llm = ChatOpenAI(
+#     base_url="https://openrouter.ai/api/v1",
+#     api_key=OPENROUTER_API_KEY,
+#     model="qwen/qwen3-coder:free"
+# )
+
+
+
+# parser = JsonOutputParser()
+
+# prompt = ChatPromptTemplate.from_messages([
+#     ("system", structured_system_prompt),
+#     ("human", "{input}")
+# ])
+
+# class QueryRequest(BaseModel):
+#     documents: str
+#     questions: list[str]
+# @app.post("/hackrx/run")
+# async def run_query(request: Request, body: QueryRequest):
+#     auth = request.headers.get("Authorization")
+#     if not auth or not auth.startswith("Bearer "):
+#         raise HTTPException(status_code=401, detail="Unauthorized")
+
+#     # Download document
+#     try:
+#         response = requests.get(body.documents)
+#         response.raise_for_status()
+#         with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as temp_file:
+#             temp_file.write(response.content)
+#             temp_filepath = temp_file.name
+#     except Exception as e:
+#         raise HTTPException(status_code=400, detail=f"Failed to download document: {str(e)}")
+
+#     try:
+#         # Process document (with updated embeddings)
+#         extracted_data = load_pdf_file(temp_filepath)
+#         chunks = text_split(extracted_data, temp_filepath)
+
+#         pc = Pinecone(api_key=PINECONE_API_KEY)
+#         docsearch = PineconeVectorStore.from_documents(
+#             documents=chunks,
+#             index_name=index_name,
+#             embedding=embeddings,  # Now using L12
+#         )
+#         retriever = docsearch.as_retriever(search_type="similarity", search_kwargs={"k": 20} )  # Increased to 12
+
+#         qa_chain = create_stuff_documents_chain(llm, prompt)
+#         rag_chain = create_retrieval_chain(retriever, qa_chain)
+
+#         answers = []
+
+#         for question in body.questions:
+#             try:
+#                 # Refined dynamic expansion
+#                 expansion_prompt = ChatPromptTemplate.from_messages([
+#                 ("system", "Generate 8-15 relevant search terms, synonyms, and policy concepts for this query (e.g., 'waiting period for PED' -> 'pre-existing diseases, waiting period, coverage start, exclusions, policy inception, PED'). Output as comma-separated string."),
+#                 ("human", question)
+#             ])
+#                 expansion_response = (expansion_prompt | llm).invoke({"input": question})
+#                 expansion_terms = expansion_response.content.strip()
+
+#                 enhanced_input = f"Query: {question}\nRelated terms: {expansion_terms}"
+
+#                 response = rag_chain.invoke({"input": enhanced_input})
+
+#                 answer_text = response["answer"].strip() or "Information not found in the document."
+#                 answers.append(answer_text)
+#             except Exception as e:
+#                 answers.append("Information not found in the document.")
+
+#         return {"answers": answers}
+
+#     except Exception as e:
+#         raise HTTPException(status_code=500, detail=str(e))
+
+#     finally:
+#         if os.path.exists(temp_filepath):
+#             os.remove(temp_filepath)
+
+
+
+
+# optimization
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -562,7 +679,7 @@ app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
 
 embeddings = download_hugging_face_embeddings()
-index_name = "hackx"
+index_name = "hackx-v2v"
 
 llm = ChatOpenAI(
     base_url="https://openrouter.ai/api/v1",
@@ -608,7 +725,7 @@ async def run_query(request: Request, body: QueryRequest):
             index_name=index_name,
             embedding=embeddings,
         )
-        retriever = docsearch.as_retriever(search_type="similarity", search_kwargs={"k": 3})
+        retriever = docsearch.as_retriever(search_type="similarity", search_kwargs={"k": 15})
         
         # Create RAG chain
         qa_chain = create_stuff_documents_chain(llm, prompt)
