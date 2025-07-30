@@ -674,6 +674,7 @@ load_dotenv()
 PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 os.environ["PINECONE_API_KEY"] = PINECONE_API_KEY
+EVAL_TOKEN = os.getenv("EVAL_BEARER_TOKEN")
 
 app = FastAPI()
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
@@ -700,8 +701,14 @@ class QueryRequest(BaseModel):
 @app.post("/hackrx/run")
 async def run_query(request: Request, body: QueryRequest):
     auth = request.headers.get("Authorization")
-    if not auth or not auth.startswith("Bearer "):
+    if not EVAL_TOKEN:  # Safety check if env var is missing
+        raise HTTPException(status_code=500, detail="Server configuration error")
+    
+    expected_auth = f"Bearer {EVAL_TOKEN}"
+    if not auth or auth.strip() != expected_auth.strip():
         raise HTTPException(status_code=401, detail="Unauthorized")
+    # if not auth or not auth.startswith("Bearer "):
+    #     raise HTTPException(status_code=401, detail="Unauthorized")
     
     # Download document from URL using a safe temporary file path
     try:
