@@ -9,7 +9,6 @@ langchain-google-genai==2.0.9
 langchain-pinecone>=0.2.6
 
 pinecone-client>=3.0.0
-sentence-transformers==3.4.1
 deep-translator==1.11.4
 
 google-generativeai==0.8.4
