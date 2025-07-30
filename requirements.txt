@@ -9,7 +9,7 @@ langchain-openai==0.0.5
 langchain-pinecone==0.0.3
 langchain-huggingface==0.1.1
 langchain-community==0.0.21
-langsmith==0.3.40
+langsmith==0.0.90
 
 pinecone-client==2.2.4
 pdfplumber==0.11.0
