@@ -8,7 +8,7 @@ langchain==0.0.352
 langchain-core==0.1.42
 langchain-openai==0.0.5
 langchain-pinecone==0.0.3
-langchain-huggingface==0.0.7
+langchain-huggingface==0.1.1
 langchain-community==0.0.21
 
 pinecone-client==2.2.4
